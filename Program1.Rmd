@@ -1,5 +1,5 @@
 ---
-title: "Hawaii Solar Irradiance"
+title: "Project 1: Typhoons"
 author: "Gus Coffey and Kelli McCarty"
 date: "Spring 2026"
 output:
@@ -8,12 +8,16 @@ output:
     toc: yes
     toc_float: yes
     df_print: kable
+    css: lab.css
 ---
 
+# Set Up
+
+## Loading Libraries
 ```{r Loading Libraries}
 library(tidyverse)
 ```
-
+## Loading Data
 ```{r Loading Data}
 atlantic <- "atlantic.csv"
 raw_atlantic <- read_csv(atlantic)
@@ -21,6 +25,7 @@ raw_atlantic <- read_csv(atlantic)
 pacific <- "pacific.csv"
 raw_pacific <- read_csv(pacific)
 ```
+# Data Cleaning and Wrangling
 
 ```{r Data Cleaning}
 # Adding new column that labels all observations as coming from the Atlantic ocean
@@ -61,8 +66,83 @@ typhoons <- typhoons %>% drop_na(Event) %>% filter(!if_any(c(MaxWind, MinPress,
                                                              ModWindSW, ModWindNW, 
                                                              HiWindNE, HiWindSE, 
                                                              HiWindSW, HiWindNW), ~ . == -999))
+```
+# Distributions and Summary Statistics 
 
+## Summary Statistics
+```{r Summary Statistics}
+head(typhoons)
+summary(typhoons)
 str(typhoons)
 
+typhoons %>% group_by(ocean) %>% 
+  summarize(avg_max_wind = mean(MaxWind),
+                       sd_max_wind = sd(MaxWind),
+                       avg_min_pr = mean(MinPress),
+                       sd_min_pr = sd(MinPress),
+                       avg_hi_ne_wind = mean(HiWindNE),
+                       sd_hi_ne_wind = mean(HiWindNE)
+                       )
+
+typhoons %>% group_by(Status) %>% 
+  summarize(avg_max_wind = mean(MaxWind),
+                       sd_max_wind = sd(MaxWind),
+                       avg_min_pr = mean(MinPress),
+                       sd_min_pr = sd(MinPress),
+                       avg_hi_ne_wind = mean(HiWindNE),
+                       sd_hi_ne_wind = mean(HiWindNE)
+                       ) %>% 
+  arrange(desc(avg_max_wind))
+```
+## Data Visualizations
+```{r Visualizations}
+# Histogram
+ggplot(typhoons, aes(x = MaxWind)) +
+  geom_histogram(aes(y = after_stat(density)), color = "white", fill = "darkseagreen") +
+  facet_wrap(~ocean) +
+  geom_density(color = "red") +
+  labs(x = "Maximum Wind Speed (mph)", 
+       y = "Frequency", 
+       title = "Histogram of Maximum Wind Speed by Ocean") +
+  theme_minimal()
+
+# Box Plot
+ggplot(typhoons, aes(x = ocean, y = MaxWind)) +
+  geom_boxplot(fill = "darkseagreen") +
+  labs(x = "Ocean", 
+       y = "Maximum Wind Speed (mph)", 
+       title = "Boxplot of Maximum Wind Speed by Ocean") +
+  theme_minimal()
+
+# Density Plot
+ggplot(typhoons, aes(x = MaxWind, fill = ocean)) + 
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = mean(typhoons$MaxWind), 
+             color = "red", linetype = "dashed", size = 1) +
+  facet_wrap(~ocean) +
+  labs(title = "Density Plot of Maximum Wind Speed",
+       x = "Maximum Wind Speed (mph)",
+       y = "Density") +
+  theme_minimal()
 ```
 
+# Research Questions
+
+*1. Is there a relationship between wind speed and pressure?*
+
+### Exploring Wind Speed - Pressure Relationship
+```{r}
+ggplot(typhoons, aes(x = MaxWind, y = MinPress, color = ocean)) +
+  geom_point() +
+  labs(x = "Maximum Wind Speed (mph)",
+       y = "Minimum Pressure (?)", #TODO: add pressure units?
+       title = "Scatterplot of Wind Speed and Pressure") +
+  geom_smooth() +
+  facet_wrap(~ocean) +
+  theme_minimal()
+```
+
+*2. ?*
+```{r}
+
+```
