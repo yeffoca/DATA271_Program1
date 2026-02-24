@@ -181,13 +181,17 @@ ggplot(storms, aes(x = MaxWind, fill = ocean)) +
        y = "Density") +
   theme_bw()
 ```
+
 *Histogram Interpretation*
+
 The histograms for both oceans appear to have some right skew, as the majority of the data resides on the left side of the graph. For the Atlantic Ocean, the majority of observations (~1500) appear to fall between 20 and 30 knots. The same is true in the Pacific, with approximately 2500 data point also falling in the 20 to 30 knot range. There does appear to be some outliers, indicated by the shorter bars towards the right of the graph.
 
 *Box Plot Interpretation*
+
 The boxplots show that there are indeed outliers for both oceans in the upper range (faster wind speeds). The median for the Atlantic Ocean appears to be slightly greater than that of the Pacific, but the spread of both datasets is roughly the same.
 
 *Density Plot Interpretation*
+
 Similar to the histogram, the density plots show right skew for both the Atlantic and Pacific oceans. These distributions lack symmetry and therefore do not appear normal. The peak for the Pacific ocean is higher than that of the Atlantic, but both density curves appear to peak around the same value (~25 knots).
 
 
