@@ -1,12 +1,12 @@
 ---
-title: "Project 1: Typhoons and Hurricanes"
+title: "Project 1: Typhoons"
 author: "Gus Coffey and Kelli McCarty"
 date: "Spring 2026"
 output:
   html_document:
     theme: cosmo
-    toc: yes
-    toc_float: yes
+    toc: no
+    toc_float: no
     df_print: kable
     css: lab.css
 ---
@@ -17,6 +17,7 @@ output:
 ```{r Loading Libraries, echo=TRUE, results="hide", message=FALSE, warning=FALSE}
 library(tidyverse)
 ```
+
 ## Loading Data
 ```{r Loading Data, echo=TRUE, results="hide", message=FALSE, warning=FALSE}
 atlantic <- "atlantic.csv"
@@ -25,6 +26,14 @@ raw_atlantic <- read_csv(atlantic)
 pacific <- "pacific.csv"
 raw_pacific <- read_csv(pacific)
 ```
+
+### Data Description
+
+Link: https://www.kaggle.com/datasets/noaa/hurricane-database?resource=download&select=atlantic.csv
+
+This dataset contains historical records of tropical cyclones in the Atlantic and Pacific Oceans from the National Hurricane Center (NHC). It includes the date, location, wind speed, minimum pressure, and status of a storm event.
+
+
 # Data Cleaning and Wrangling
 
 ### Combining our datasets
@@ -47,7 +56,7 @@ str(raw_pac_atl)
 raw_pac_atl$Date <- as.Date(as.character(raw_pac_atl$Date), format = "%Y%m%d")
 
 # Renaming columns to remove spaces for easier use
-storms <- raw_pac_atl %>% select(-Event) %>% 
+storms <- raw_pac_atl %>% select(-Event) %>%
   rename(MaxWind = `Maximum Wind`,
   MinPress = `Minimum Pressure`,
   LowWindNE = `Low Wind NE`,
@@ -63,7 +72,7 @@ storms <- raw_pac_atl %>% select(-Event) %>%
   HiWindSW = `High Wind SW`,
   HiWindNW = `High Wind NW`)
 
-storms <- storms %>% 
+storms <- storms %>%
   # Removing all observations with -999 in any of the following columns
   # -999 is a place holder for variables that were not measured
   filter(!if_any(c(MaxWind, MinPress,
@@ -75,7 +84,7 @@ storms <- storms %>%
                    HiWindSW, HiWindNW), ~ . == -999)) %>%
   mutate(
     # Creating new lat and lon columns with positive and negative
-    # degrees isntead of N, E, S, W
+    # degrees instead of N, E, S, W
     lat = as.numeric(str_remove(Latitude, "[NS]")) *
           ifelse(str_detect(Latitude, "S"), -1, 1),
     lon = as.numeric(str_remove(Longitude, "[EW]")) *
@@ -90,41 +99,53 @@ storms <- storms %>%
     ),
     # Turning the status_group column into a factor
     status_group = factor(status_group,
-                          levels = c("tropical", 
-                                     "subtropical", 
-                                     "extratropical", 
-                                     "low-pressure", 
+                          levels = c("tropical",
+                                     "subtropical",
+                                     "extratropical",
+                                     "low-pressure",
                                      "other")
                           )
     )
 
 
 ```
+
+
 # Distributions and Summary Statistics
 
 ## Summary Statistics
 ```{r Summary Statistics}
+# Show first 6 rows of data
 head(storms)
+
+# Summary stats (median, quartiles, min/max)
 summary(storms)
+
+# Show data structure (type, num of obs, etc.)
 str(storms)
 
+# Create table of summary stats of max wind, min pressure, and NE wind speeds
+# grouped by ocean
 storms %>% group_by(ocean) %>%
   summarize(avg_max_wind = mean(MaxWind),
                        sd_max_wind = sd(MaxWind),
                        avg_min_pr = mean(MinPress),
                        sd_min_pr = sd(MinPress),
                        avg_hi_ne_wind = mean(HiWindNE),
-                       sd_hi_ne_wind = mean(HiWindNE)
+                       sd_hi_ne_wind = sd(HiWindNE)
                        )
 
-storms %>% group_by(Status) %>%
+# Create table of summary stats of max wind, min pressure, and NE wind speeds
+# grouped by status
+storms %>% group_by(status_group) %>%
   summarize(avg_max_wind = mean(MaxWind),
                        sd_max_wind = sd(MaxWind),
                        avg_min_pr = mean(MinPress),
                        sd_min_pr = sd(MinPress),
                        avg_hi_ne_wind = mean(HiWindNE),
-                       sd_hi_ne_wind = mean(HiWindNE)
+                       sd_hi_ne_wind = sd(HiWindNE)
                        ) %>%
+  # arranged in descending order
   arrange(desc(avg_max_wind))
 ```
 
@@ -132,49 +153,66 @@ storms %>% group_by(Status) %>%
 ```{r Visualizations}
 # Histogram
 ggplot(storms, aes(x = MaxWind)) +
-  geom_histogram(aes(y = after_stat(density)), color = "white", fill = "darkseagreen") +
+  geom_histogram(binwidth = 9, fill = "darkseagreen", color = "white") +
   facet_wrap(~ocean) +
-  geom_density(color = "red") +
-  labs(x = "Maximum Wind Speed (mph)",
+  labs(x = "Maximum Wind Speed [kt]",
        y = "Frequency",
        title = "Histogram of Maximum Wind Speed by Ocean") +
-  theme_minimal()
+  theme_bw()
 
 # Box Plot
 ggplot(storms, aes(x = ocean, y = MaxWind)) +
   geom_boxplot(fill = "darkseagreen") +
   labs(x = "Ocean",
-       y = "Maximum Wind Speed (mph)",
+       y = "Maximum Wind Speed [kt]",
        title = "Boxplot of Maximum Wind Speed by Ocean") +
-  theme_minimal()
+  theme_bw()
 
 # Density Plot
 ggplot(storms, aes(x = MaxWind, fill = ocean)) +
   geom_density(alpha = 0.5) +
   geom_vline(xintercept = mean(storms$MaxWind),
              color = "red", linetype = "dashed", size = 1) +
+    geom_vline(xintercept = median(storms$MaxWind),
+             color = "blue", linetype = "dotted", size = 1) +
   facet_wrap(~ocean) +
-  labs(title = "Density Plot of Maximum Wind Speed",
-       x = "Maximum Wind Speed (mph)",
+  labs(title = "Density Plot of Maximum Wind Speed by Ocean",
+       x = "Maximum Wind Speed [kt]",
        y = "Density") +
-  theme_minimal()
+  theme_bw()
 ```
+*Histogram Interpretation*
+The histograms for both oceans appear to have some right skew, as the majority of the data resides on the left side of the graph. For the Atlantic Ocean, the majority of observations (~1500) appear to fall between 20 and 30 knots. The same is true in the Pacific, with approximately 2500 data point also falling in the 20 to 30 knot range. There does appear to be some outliers, indicated by the shorter bars towards the right of the graph.
+
+*Box Plot Interpretation*
+The boxplots show that there are indeed outliers for both oceans in the upper range (faster wind speeds). The median for the Atlantic Ocean appears to be slightly greater than that of the Pacific, but the spread of both datasets is roughly the same.
+
+*Density Plot Interpretation*
+Similar to the histogram, the density plots show right skew for both the Atlantic and Pacific oceans. These distributions lack symmetry and therefore do not appear normal. The peak for the Pacific ocean is higher than that of the Atlantic, but both density curves appear to peak around the same value (~25 knots).
+
 
 # Research Questions
 
-## *1. Is there a relationship between wind speed and pressure?*
+## *1. Is there a relationship between wind speed and pressure for tropical storms?*
 
 ### Exploring Wind Speed - Pressure Relationship
 ```{r}
-ggplot(storms, aes(x = MaxWind, y = MinPress, color = ocean)) +
-  geom_point() +
-  labs(x = "Maximum Wind Speed (mph)",
-       y = "Minimum Pressure (?)", #TODO: add pressure units?
-       title = "Scatterplot of Wind Speed and Pressure") +
-  geom_smooth() +
+# Select observations from tropical storm events
+# Color by status (hurricane, storm, or depression)
+storms %>% filter(status_group == "tropical") %>%
+  ggplot(aes(x = MaxWind, y = MinPress, color = Status)) +
+  geom_point(alpha = 0.4) + # Adjust opacity of points
+  labs(x = "Maximum Wind Speed [kt]", # Wind Speeds measured in knots
+       y = "Minimum Pressure [mb]", # Pressure measure in millibars
+       title = "Relationship Between Wind Speed and Pressure for Tropical Storms") +
+  # Add line using linear model method
+  geom_smooth(method = "lm") +
   facet_wrap(~ocean) +
-  theme_minimal()
+  theme_bw()
 ```
+
+This plot graphs observations of minimum pressure against maximum wind speed for tropical storms in both the Atlantic and Pacific Oceans. There appears to be a negative relationship between minimum pressure and maximum wind speed, meaning the lower the pressure, the faster the wind speed. This trend is pretty equal across both oceans. This relationship makes sense, as wind typically travels from regions of high pressure to low pressure. Thus, the greater this gradient is, or more different the low versus high pressure systems are, the faster the wind. The points are colored by status, indicating that storms categorized as hurricanes have the fastest winds and lowest pressure. In contrast, tropical depressions have the mildest winds and highest pressure.
+
 
 ## *2. Are these storms more common in certain regions?*
 
@@ -207,9 +245,9 @@ ggplot(storms_filt, aes(x = lon, y = lat, color = MaxWind)) +
   coord_cartesian(xlim = c(-200, 25)) +
   labs(x = "Longitude [Degrees]",
        y = "Latitude [Degrees]",
-       color = "Max\nWind\nSpeed [mph]",
+       color = "Max\nWind\nSpeed [kt]",
        title = "Relationship Between Storm Category and Geographic Location") +
-  theme_minimal()
+  theme_bw()
 ```
 
-This plot shows us where we can expect to find storms of different categories. For example, it is evident from the plot that extratropical storms tend to be at higher latitudes than tropical storms. We can also see that tropical storms appear to spread across both the Pacific and Atlantic oceans whereas extratropical storms form mostly in the Atlantic (See Meridian of Cape Horn line). The plot also denotes maximum wind speed of each storm using a blue color gradient. This allows us to obtain insights on how wind speeds compare between storm categories. For example, Low Pressure storms tend to have much slower maximum wind speeds than tropical storms.
+This plot shows the locations of storms of different categories (tropical, subtropical, extratropical, and low pressure). Extratropical storms seem to occur most commonly at higher latitudes (closer to the North Pole), while tropical storms and low pressure events occur more at lower latitudes (closer to the equator). The Meridian of Cape Horn line denotes the approximate separation between the Atlantic and Pacific Oceans. From the figure, we can see that extratropical storms mainly occur in the Atlantic, while tropical storms and low pressure systems mostly occur in the Pacific. The points are colored on a gradient by maximum wind speed (kt). We can see on the plot that low pressure systems have slower wind speeds compared to tropical storms, which have the fastest wind speeds.
