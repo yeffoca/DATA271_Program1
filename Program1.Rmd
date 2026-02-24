@@ -178,7 +178,7 @@ ggplot(storms, aes(x = MaxWind, y = MinPress, color = ocean)) +
 
 ## *2. Are these storms more common in certain regions?*
 
-### Exploring Storm Category adn Wind Speed - Location Relationship
+### Exploring Storm Category and Wind Speed - Location Relationship
 ```{r}
 # Removing any observations with a status that
 # does not fit the main 4 categories (tropical, subtropical, etc.)
