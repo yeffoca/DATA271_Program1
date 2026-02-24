@@ -1,5 +1,5 @@
 ---
-title: "Hawaii Solar Irradiance"
+title: "Project 1: Typhoons and Hurricanes"
 author: "Gus Coffey and Kelli McCarty"
 date: "Spring 2026"
 output:
@@ -8,61 +8,208 @@ output:
     toc: yes
     toc_float: yes
     df_print: kable
+    css: lab.css
 ---
 
-```{r Loading Libraries}
+# Set Up
+
+## Loading Libraries
+```{r Loading Libraries, echo=TRUE, results="hide", message=FALSE, warning=FALSE}
 library(tidyverse)
 ```
-
-```{r Loading Data}
+## Loading Data
+```{r Loading Data, echo=TRUE, results="hide", message=FALSE, warning=FALSE}
 atlantic <- "atlantic.csv"
 raw_atlantic <- read_csv(atlantic)
 
 pacific <- "pacific.csv"
 raw_pacific <- read_csv(pacific)
 ```
+# Data Cleaning and Wrangling
 
-```{r Data Cleaning}
+### Combining our datasets
+```{r Data Joining}
 # Adding new column that labels all observations as coming from the Atlantic ocean
 raw_atlantic <- raw_atlantic %>% mutate(ocean = "ATL")
 
-# Adding new column that labels all observations as coming from the Atlantic ocean
+# Adding new column that labels all observations as coming from the Pacific ocean
 raw_pacific <- raw_pacific %>% mutate(ocean = "PAC")
 
 # Combining pacific and atlantic data into one dataframe
 raw_pac_atl <- rbind(raw_pacific, raw_atlantic)
 
 str(raw_pac_atl)
-
-# Changing Date column datatype from numeric to date (yyyy-mm-dd)
-raw_pac_atl$Date <- as.Date(as.character(raw_pac_atl$Date), format = "%Y%m%d")
-# raw_pac_atl$ocean <- as.factor(raw_pac_atl$ocean)
-
-typhoons <- raw_pac_atl %>% rename(MaxWind = `Maximum Wind`,
-                                   MinPress = `Minimum Pressure`,
-                                   LowWindNE = `Low Wind NE`,
-                                   LowWindSE = `Low Wind SE`,
-                                   LowWindSW = `Low Wind SW`,
-                                   LowWindNW = `Low Wind NW`,
-                                   ModWindNE = `Moderate Wind NE`,
-                                   ModWindSE = `Moderate Wind SE`,
-                                   ModWindSW = `Moderate Wind SW`,
-                                   ModWindNW = `Moderate Wind NW`,
-                                   HiWindNE = `High Wind NE`,
-                                   HiWindSE = `High Wind SE`,
-                                   HiWindSW = `High Wind SW`,
-                                   HiWindNW = `High Wind NW`)
-
-#TODO: Maybe change this to the way we learned in class
-typhoons <- typhoons %>% drop_na(Event) %>% filter(!if_any(c(MaxWind, MinPress, 
-                                                             LowWindNE, LowWindSE, 
-                                                             LowWindSW, LowWindNW, 
-                                                             ModWindNE, ModWindSE, 
-                                                             ModWindSW, ModWindNW, 
-                                                             HiWindNE, HiWindSE, 
-                                                             HiWindSW, HiWindNW), ~ . == -999))
-
-str(typhoons)
-
 ```
 
+### Cleaning our combined dataset
+```{r Data Cleaning}
+# Changing Date column datatype from numeric to date (yyyy-mm-dd)
+raw_pac_atl$Date <- as.Date(as.character(raw_pac_atl$Date), format = "%Y%m%d")
+
+# Renaming columns to remove spaces for easier use
+storms <- raw_pac_atl %>% select(-Event) %>% 
+  rename(MaxWind = `Maximum Wind`,
+  MinPress = `Minimum Pressure`,
+  LowWindNE = `Low Wind NE`,
+  LowWindSE = `Low Wind SE`,
+  LowWindSW = `Low Wind SW`,
+  LowWindNW = `Low Wind NW`,
+  ModWindNE = `Moderate Wind NE`,
+  ModWindSE = `Moderate Wind SE`,
+  ModWindSW = `Moderate Wind SW`,
+  ModWindNW = `Moderate Wind NW`,
+  HiWindNE = `High Wind NE`,
+  HiWindSE = `High Wind SE`,
+  HiWindSW = `High Wind SW`,
+  HiWindNW = `High Wind NW`)
+
+storms <- storms %>% 
+  # Removing all observations with -999 in any of the following columns
+  # -999 is a place holder for variables that were not measured
+  filter(!if_any(c(MaxWind, MinPress,
+                   LowWindNE, LowWindSE,
+                   LowWindSW, LowWindNW,
+                   ModWindNE, ModWindSE,
+                   ModWindSW, ModWindNW,
+                   HiWindNE, HiWindSE,
+                   HiWindSW, HiWindNW), ~ . == -999)) %>%
+  mutate(
+    # Creating new lat and lon columns with positive and negative
+    # degrees isntead of N, E, S, W
+    lat = as.numeric(str_remove(Latitude, "[NS]")) *
+          ifelse(str_detect(Latitude, "S"), -1, 1),
+    lon = as.numeric(str_remove(Longitude, "[EW]")) *
+          ifelse(str_detect(Longitude, "W"), -1, 1),
+    # Breaking status codes into 5 categories for simplicity
+    status_group = case_when(
+      Status %in% c("TD", "TS", "HU") ~ "tropical",
+      Status %in% c("SD", "SS")       ~ "subtropical",
+      Status == "EX"                  ~ "extratropical",
+      Status %in% c("LO", "DB", "WV") ~ "low-pressure",
+      TRUE                            ~ "other"
+    ),
+    # Turning the status_group column into a factor
+    status_group = factor(status_group,
+                          levels = c("tropical", 
+                                     "subtropical", 
+                                     "extratropical", 
+                                     "low-pressure", 
+                                     "other")
+                          )
+    )
+
+
+```
+# Distributions and Summary Statistics
+
+## Summary Statistics
+```{r Summary Statistics}
+head(storms)
+summary(storms)
+str(storms)
+
+storms %>% group_by(ocean) %>%
+  summarize(avg_max_wind = mean(MaxWind),
+                       sd_max_wind = sd(MaxWind),
+                       avg_min_pr = mean(MinPress),
+                       sd_min_pr = sd(MinPress),
+                       avg_hi_ne_wind = mean(HiWindNE),
+                       sd_hi_ne_wind = mean(HiWindNE)
+                       )
+
+storms %>% group_by(Status) %>%
+  summarize(avg_max_wind = mean(MaxWind),
+                       sd_max_wind = sd(MaxWind),
+                       avg_min_pr = mean(MinPress),
+                       sd_min_pr = sd(MinPress),
+                       avg_hi_ne_wind = mean(HiWindNE),
+                       sd_hi_ne_wind = mean(HiWindNE)
+                       ) %>%
+  arrange(desc(avg_max_wind))
+```
+
+## Data Visualizations
+```{r Visualizations}
+# Histogram
+ggplot(storms, aes(x = MaxWind)) +
+  geom_histogram(aes(y = after_stat(density)), color = "white", fill = "darkseagreen") +
+  facet_wrap(~ocean) +
+  geom_density(color = "red") +
+  labs(x = "Maximum Wind Speed (mph)",
+       y = "Frequency",
+       title = "Histogram of Maximum Wind Speed by Ocean") +
+  theme_minimal()
+
+# Box Plot
+ggplot(storms, aes(x = ocean, y = MaxWind)) +
+  geom_boxplot(fill = "darkseagreen") +
+  labs(x = "Ocean",
+       y = "Maximum Wind Speed (mph)",
+       title = "Boxplot of Maximum Wind Speed by Ocean") +
+  theme_minimal()
+
+# Density Plot
+ggplot(storms, aes(x = MaxWind, fill = ocean)) +
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = mean(storms$MaxWind),
+             color = "red", linetype = "dashed", size = 1) +
+  facet_wrap(~ocean) +
+  labs(title = "Density Plot of Maximum Wind Speed",
+       x = "Maximum Wind Speed (mph)",
+       y = "Density") +
+  theme_minimal()
+```
+
+# Research Questions
+
+## *1. Is there a relationship between wind speed and pressure?*
+
+### Exploring Wind Speed - Pressure Relationship
+```{r}
+ggplot(storms, aes(x = MaxWind, y = MinPress, color = ocean)) +
+  geom_point() +
+  labs(x = "Maximum Wind Speed (mph)",
+       y = "Minimum Pressure (?)", #TODO: add pressure units?
+       title = "Scatterplot of Wind Speed and Pressure") +
+  geom_smooth() +
+  facet_wrap(~ocean) +
+  theme_minimal()
+```
+
+## *2. Are these storms more common in certain regions?*
+
+### Exploring Storm Category adn Wind Speed - Location Relationship
+```{r}
+# Removing any observations with a status that
+# does not fit the main 4 categories (tropical, subtropical, etc.)
+storms_filt <- storms %>%
+  filter(status_group != "other")
+
+# Plotting storms based on location and faceting by storm category
+# Color represents maximum wind speeds
+ggplot(storms_filt, aes(x = lon, y = lat, color = MaxWind)) +
+  geom_point(alpha = 0.7) +
+  facet_wrap(vars(status_group), nrow=1,
+             labeller = as_labeller(c(tropical = "Tropical",
+                                      subtropical = "Subtropical",
+                                      extratropical = "Extratropical",
+                                      `low-pressure` = "Low Pressure"))) +
+  geom_vline(xintercept = -67) +
+  annotate(
+    "text",
+    x = -80,
+    y = 60,
+    label = "Meridian of Cape Horn",
+    angle = 90,
+    vjust = -0.4,
+    size = 3
+  ) +
+  coord_cartesian(xlim = c(-200, 25)) +
+  labs(x = "Longitude [Degrees]",
+       y = "Latitude [Degrees]",
+       color = "Max\nWind\nSpeed [mph]",
+       title = "Relationship Between Storm Category and Geographic Location") +
+  theme_minimal()
+```
+
+This plot shows us where we can expect to find storms of different categories. For example, it is evident from the plot that extratropical storms tend to be at higher latitudes than tropical storms. We can also see that tropical storms appear to spread across both the Pacific and Atlantic oceans whereas extratropical storms form mostly in the Atlantic (See Meridian of Cape Horn line). The plot also denotes maximum wind speed of each storm using a blue color gradient. This allows us to obtain insights on how wind speeds compare between storm categories. For example, Low Pressure storms tend to have much slower maximum wind speeds than tropical storms.
